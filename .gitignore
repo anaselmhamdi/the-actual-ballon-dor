@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+data/raw/
+node_modules/
+web/dist/
+.context/
+.DS_Store
+data/out/*.parquet
+web/.hallmark/shots/

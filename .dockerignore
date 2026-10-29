@@ -1,0 +1,7 @@
+.venv
+data/raw
+web/node_modules
+web/dist
+web/.hallmark
+.context
+.git
