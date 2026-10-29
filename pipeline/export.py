@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
-from pipeline import features, matches, model, understat_link
+from pipeline import elo, features, matches, model, understat_link
 from pipeline.sources import transfermarkt
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -82,6 +82,7 @@ def main():
     links = understat_link.link(mt, players)
     print(len(links), "players linked to Understat")
     mt = understat_link.attach(mt, understat_link.match_xg(links))
+    mt = elo.attach(mt)
     print(int(mt["npxg"].notna().sum()), "matches with xG")
     extra = json.loads((OUT / "pool_extra.json").read_text()) if (OUT / "pool_extra.json").exists() else {}
     unverified = set(extra) - set(links) - set(json.loads((OUT / "pool_wiki.json").read_text()))
@@ -127,6 +128,7 @@ def main():
             "c": [{
                 "id": r.tm_id, "pos": r.pos,
                 "o": r2(r.output_pos), "oa": r2(r.output_all), "b": r2(r.big_pos), "ba": r2(r.big_all), "t": r2(r.trophy),
+                "k": r2(r.consistency), "kr": None if pd.isna(r.consistency_raw) else round(float(r.consistency_raw) * 100),
                 "euro": r.nat_euro, "eclub": r.club_euro,
                 "club": clubs.get(r.main_club), "m": int(r.matches), "min": int(r.minutes), "g": int(r.goals),
                 "pg": int(r.pen_goals), "a": int(r.assists), "xg": r2(r.npxg), "xa": r2(r.xa), "bm": int(r.big_matches),

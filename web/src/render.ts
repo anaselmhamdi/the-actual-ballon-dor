@@ -84,7 +84,7 @@ export function explorerModel(data: Data, y: Year, s: Settings): string {
   const r = ranked(y, s).slice(0, 10);
   const max = Math.max(...r.map((x) => {
     const p = parts(x.c, s);
-    return Math.max(0, p.output) + Math.max(0, p.big) + Math.max(0, p.trophy);
+    return Math.max(0, p.output) + Math.max(0, p.big) + Math.max(0, p.trophy) + Math.max(0, p.consistency);
   }), 0.01);
   return r.map((x, i) => {
     const p = parts(x.c, s);
@@ -94,10 +94,10 @@ export function explorerModel(data: Data, y: Year, s: Settings): string {
     return `<tr${i === 0 ? ' class="is-lead"' : ""}>
       <td class="num">${i + 1}</td>
       <td><span class="p-name">${name(data, x.c.id)}</span><span class="p-sub">${sub}${x.c.lm ? ", league games estimated" : ""}</span></td>
-      <td><span class="bars" title="Output ${fmt(p.output)}, big games ${fmt(p.big)}, trophies ${fmt(p.trophy)}${x.c.tr.length ? ": " + esc(x.c.tr.join(", ")) : ""}">
-        <span class="bar bar--o" style="--w:${w(p.output)}%"></span><span class="bar bar--b" style="--w:${w(p.big)}%"></span><span class="bar bar--t" style="--w:${w(p.trophy)}%"></span>
+      <td><span class="bars" title="Output ${fmt(p.output)}, big games ${fmt(p.big)}, trophies ${fmt(p.trophy)}, consistency ${fmt(p.consistency)}${x.c.tr.length ? ": " + esc(x.c.tr.join(", ")) : ""}">
+        <span class="bar bar--o" style="--w:${w(p.output)}%"></span><span class="bar bar--b" style="--w:${w(p.big)}%"></span><span class="bar bar--t" style="--w:${w(p.trophy)}%"></span><span class="bar bar--k" style="--w:${w(p.consistency)}%"></span>
       </span><span class="num bars__total">${fmt(x.score)}</span></td>
-      <td class="num">${x.c.g}</td><td class="num">${x.c.a}</td><td class="num">${xgxa}</td></tr>`;
+      <td class="num">${x.c.g}</td><td class="num">${x.c.a}</td><td class="num">${xgxa}</td><td class="num">${x.c.kr ?? ""}${x.c.kr !== null ? "%" : ""}</td></tr>`;
   }).join("");
 }
 

@@ -10,6 +10,7 @@ dependencies = [
   "numpy>=2",
   "statsmodels>=0.14",
   "pyarrow>=17",
+  "pillow>=13.0.0",
 ]
 
 [dependency-groups]

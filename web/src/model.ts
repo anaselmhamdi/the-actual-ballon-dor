@@ -3,6 +3,7 @@ export type Pos = "GK" | "DEF" | "MID" | "FWD";
 export interface Cand {
   id: string; pos: Pos;
   o: number | null; oa: number | null; b: number | null; ba: number | null; t: number | null;
+  k: number | null; kr: number | null;
   euro: boolean | null; eclub: boolean | null; club: string | null;
   m: number; min: number; g: number; pg: number; a: number; xg: number | null; xa: number | null;
   bm: number; tr: string[]; lm: boolean;
@@ -24,24 +25,25 @@ export interface Data {
   bias: { unit: string; n: number; r2: number; rows: BiasRow[] };
 }
 
-export interface Settings { output: number; big: number; trophy: number; fairness: number; historical: boolean }
+export interface Settings { output: number; big: number; trophy: number; consistency: number; fairness: number; historical: boolean }
 
-export const DEFAULTS: Settings = { output: 50, big: 25, trophy: 25, fairness: 70, historical: true };
+export const DEFAULTS: Settings = { output: 50, big: 25, trophy: 25, consistency: 0, fairness: 70, historical: true };
 
 export function parts(c: Cand, s: Settings) {
-  const sum = s.output + s.big + s.trophy || 1;
+  const sum = s.output + s.big + s.trophy + s.consistency || 1;
   const f = s.fairness / 100;
   const blend = (pos: number | null, all: number | null) => f * (pos ?? -1) + (1 - f) * (all ?? -1);
   return {
     output: (s.output / sum) * blend(c.o, c.oa),
     big: (s.big / sum) * blend(c.b, c.ba),
     trophy: (s.trophy / sum) * (c.t ?? -1),
+    consistency: (s.consistency / sum) * (c.k ?? -1),
   };
 }
 
 export function score(c: Cand, s: Settings): number {
   const p = parts(c, s);
-  return p.output + p.big + p.trophy;
+  return p.output + p.big + p.trophy + p.consistency;
 }
 
 export function eligible(c: Cand, y: Year, historical: boolean): boolean {

@@ -48,6 +48,7 @@ def flatten(player_id: str, rows: list[dict]) -> list[dict]:
             "game_state": g.get("gameState"),
             "club_id": c["club"]["clubId"],
             "opp_id": c["opponent"]["clubId"],
+            "home": c["club"].get("venue") == "home",
             "club_rank": c["club"].get("clubRank"),
             "opp_rank": c["opponent"].get("clubRank"),
             "gf": c["club"].get("goalsTotal"),

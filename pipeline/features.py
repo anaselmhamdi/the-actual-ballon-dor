@@ -29,9 +29,18 @@ def prepare(m: pd.DataFrame) -> pd.DataFrame:
     m["ga_on"] = m["opp_goals_on"].where(m["opp_goals_on"].notna(), m["ga"].where(m["minutes"] >= 85))
     # Shootout scores are folded into the totals, so the open-play score is unknown.
     m.loc[m["game_state"] == "penalty_shootout", "ga_on"] = np.nan
-    opp = np.where(m["kind"] == "league",
-                   np.select([m["opp_rank"] <= 4, m["opp_rank"] <= 10], [1.15, 1.0], 0.9), 1.0)
-    m["w"] = m["stake"] * np.where(m["opp_rank"].isna() & (m["kind"] == "league"), 1.0, opp)
+    if "opp_elo" in m:
+        # Elo already prices the league in, so league games keep a flat stake and the opponent sets the weight.
+        top = m[(m["kind"] == "league") & m["comp"].isin(comps.TOP_LEAGUES) & ~m["national"]]
+        ref = top.groupby(top["date"].dt.year)["opp_elo"].median()
+        ref = ref.reindex(range(m["date"].dt.year.min(), m["date"].dt.year.max() + 1)).interpolate().bfill().ffill()
+        m["opp_factor"] = np.clip(2 ** ((m["opp_elo"] - m["date"].dt.year.map(ref)) / 400), 0.6, 1.7).fillna(1.0)
+        m.loc[m["kind"] == "league", "stake"] = np.where(m.loc[m["kind"] == "league", "comp_type"] == 1, 1.0, 0.8)
+    else:
+        m["opp_factor"] = np.where(m["kind"] == "league",
+                                   np.select([m["opp_rank"] <= 4, m["opp_rank"] <= 10], [1.15, 1.0], 0.9), 1.0)
+        m["opp_factor"] = np.where(m["opp_rank"].isna() & (m["kind"] == "league"), 1.0, m["opp_factor"])
+    m["w"] = m["stake"] * m["opp_factor"]
     goals_assists = m["npg"] + m["assists"]
     if "npxg" in m:
         has_xg = m["npxg"].notna()
@@ -108,9 +117,27 @@ def big_games(g: pd.DataFrame, pos: str) -> tuple[float, int]:
             val += 0.7 * r.cs - 0.15 * (r.ga_on if r.ga_on == r.ga_on else 0)
         elif pos == "MID":
             val += 0.3 * r.cs
-        total += val * rw * comps.BIG_GAME_COMP[r.comp]
+        total += val * rw * comps.BIG_GAME_COMP[r.comp] * r.opp_factor
         n += 1
     return total, n
+
+
+def monthly(g: pd.DataFrame, pos: str) -> tuple[list[float], int]:
+    """Per-month form in club games (months with 180+ minutes) and how many months the club played."""
+    club = g[~g["national"]]
+    months = club["date"].dt.to_period("M")
+    team_months = int(months.nunique())
+    p = club[club["played"]].copy()
+    if p.empty:
+        return [], team_months
+    p["mo"] = p["date"].dt.to_period("M")
+    if pos in ("FWD", "MID"):
+        p["val"] = p["attack"] * p["w"]
+    else:
+        p["val"] = (p["points"].fillna(1) / 3 + p["cs"]) * p["w"] * p["p90"]
+    agg = p.groupby("mo").agg(val=("val", "sum"), p90=("p90", "sum"), minutes=("minutes", "sum"))
+    agg = agg[agg["minutes"] >= 180]
+    return [round(float(v), 4) for v in (agg["val"] / agg["p90"])], team_months
 
 
 def player_years(matches: pd.DataFrame, players: pd.DataFrame) -> pd.DataFrame:
@@ -143,6 +170,7 @@ def player_years(matches: pd.DataFrame, players: pd.DataFrame) -> pd.DataFrame:
             ga_known = p[p["ga_on"].notna()]
             xg_rows = p[p["team_xga"].notna()] if "team_xga" in p else p.iloc[0:0]
             big, n_big = big_games(g, pos)
+            months, team_months = monthly(g, pos)
             club_minutes = p[~p["national"]].groupby("club_id")["minutes"].sum()
             main_club = club_minutes.idxmax() if len(club_minutes) else None
             nat_rows = p[p["national"]]
@@ -154,12 +182,13 @@ def player_years(matches: pd.DataFrame, players: pd.DataFrame) -> pd.DataFrame:
                 "npxg": float(p["npxg"].sum()) if "npxg" in p and p["npxg"].notna().any() else None,
                 "xa": float(p["xa"].sum()) if "xa" in p and p["xa"].notna().any() else None,
                 "adj_minutes": adj_min, "adj_attack": adj_attack,
-                "cs_rate": float((full["cs"] * full["stake"]).sum() / full["stake"].sum()) if len(full) else None,
-                "conceded_p90": float(ga_known["ga_on"].sum() / max((ga_known["p90"] * ga_known["stake"]).sum(), 0.5)) if len(ga_known) else None,
-                "ppg": float((p["points"].fillna(1) * p["stake"] * p["p90"]).sum() / max((p["stake"] * p["p90"]).sum(), 0.5)),
+                "cs_rate": float((full["cs"] * full["w"]).sum() / full["stake"].sum()) if len(full) else None,
+                "conceded_p90": float(ga_known["ga_on"].sum() / max((ga_known["p90"] * ga_known["w"]).sum(), 0.5)) if len(ga_known) else None,
+                "ppg": float((p["points"].fillna(1) * p["w"] * p["p90"]).sum() / max((p["stake"] * p["p90"]).sum(), 0.5)),
                 "xga_p90": float((xg_rows["team_xga"] * xg_rows["p90"]).sum() / xg_rows["p90"].sum()) if len(xg_rows) >= 5 else None,
                 "gk_saved_p90": float(((xg_rows["team_xga"] - xg_rows["ga_on"].fillna(0)) * xg_rows["p90"]).sum() / xg_rows["p90"].sum()) if len(xg_rows) >= 5 else None,
                 "big_score": big, "big_matches": n_big,
+                "months": months, "team_months": team_months,
                 "trophy_score": float((tp["value"] * tp["share"]).sum()) if len(tp) else 0.0,
                 "trophies": sorted(set(tp["comp"])) if len(tp) else [],
                 "league_missing": league_missing,

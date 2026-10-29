@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>The actual Ballon d’Or: every year since 1956, re-scored from match data</title>
   <meta name="description" content="A transparent model re-awards the Ballon d’Or from 1956 to 2026 using match logs, expected goals, big games and trophies. Move the weights and see who should have won.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="The actual Ballon d’Or">
+  <meta property="og:description" content="Every Ballon d’Or since 1956, re-scored from match data. Move the weights and see who should have won.">
+  <meta property="og:url" content="https://ballondor.anas.link/">
+  <meta property="og:image" content="https://ballondor.anas.link/cards/og.png">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -56,6 +62,8 @@
               <input type="range" name="big" min="0" max="100" step="5"></label>
             <label class="slider"><span>Trophies</span><span class="num slider__val" data-for="trophy"></span>
               <input type="range" name="trophy" min="0" max="100" step="5"></label>
+            <label class="slider"><span>Consistency, month to month</span><span class="num slider__val" data-for="consistency"></span>
+              <input type="range" name="consistency" min="0" max="100" step="5"></label>
             <label class="slider"><span>Judge each position on its own job</span><span class="num slider__val" data-for="fairness"></span>
               <input type="range" name="fairness" min="0" max="100" step="10"></label>
           </fieldset>
@@ -112,17 +120,18 @@
             <label class="visually-hidden" for="year-select">Year</label>
             <select id="year-select"></select>
             <button class="btn btn--quiet" type="button" id="next-year" aria-label="Next year">Later</button>
+            <button class="btn btn--quiet" type="button" id="share-year">Share this year</button>
           </div>
         </div>
-        <p class="exp__meta" id="exp-meta"></p>
+        <p class="exp__meta"><span id="exp-meta"></span> <span id="share-year-status" aria-live="polite"></span></p>
         <div class="exp__grid">
           <div>
             <h3>The model’s top ten</h3>
             <table class="table table--exp" id="exp-model">
-              <thead><tr><th scope="col" class="num">#</th><th scope="col">Player</th><th scope="col">Score, by part</th><th scope="col" class="num">G</th><th scope="col" class="num">A</th><th scope="col" class="num">xG+xA</th></tr></thead>
+              <thead><tr><th scope="col" class="num">#</th><th scope="col">Player</th><th scope="col">Score, by part</th><th scope="col" class="num">G</th><th scope="col" class="num">A</th><th scope="col" class="num">xG+xA</th><th scope="col" class="num">Good months</th></tr></thead>
               <tbody></tbody>
             </table>
-            <p class="legend"><span class="sw sw--o"></span>Output <span class="sw sw--b"></span>Big games <span class="sw sw--t"></span>Trophies</p>
+            <p class="legend"><span class="sw sw--o"></span>Output <span class="sw sw--b"></span>Big games <span class="sw sw--t"></span>Trophies <span class="sw sw--k"></span>Consistency</p>
           </div>
           <div>
             <h3>The real vote</h3>
@@ -160,7 +169,8 @@
       <div class="container method">
         <h2 id="method-h">How the count works</h2>
         <dl class="rows">
-          <div><dt>Output</dt><dd>Goals and assists from every competitive match, weighted by opponent; expected goals from 2015. Defenders and keepers: goals conceded.</dd></div>
+          <div><dt>Output</dt><dd>Goals and assists from every competitive match; expected goals from 2015. Defenders and keepers: goals conceded.</dd></div>
+          <div><dt>Opponents</dt><dd>Every opponent rated by an Elo computed from 294,000 results; beating strong sides counts more.</dd></div>
           <div><dt>Big games</dt><dd>Knockouts of the European Cup, World Cup, Euro and Copa América. Finals count triple.</dd></div>
           <div><dt>The window</dt><dd>Calendar years until 2021, August to July since. 2020 is awarded too.</dd></div>
           <div><dt>Thin data</dt><dd>Logs thin out before 1993; missing league games are estimated.</dd></div>

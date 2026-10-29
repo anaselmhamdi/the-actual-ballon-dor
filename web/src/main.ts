@@ -11,7 +11,7 @@ function readUrl(): { s: Settings; year: number | null; decade: number | null } 
   const q = new URLSearchParams(location.search);
   const w = (q.get("w") ?? "").split(",").map(Number);
   const s = { ...DEFAULTS };
-  if (w.length === 3 && w.every((n) => n >= 0 && n <= 100)) [s.output, s.big, s.trophy] = w;
+  if ((w.length === 3 || w.length === 4) && w.every((n) => n >= 0 && n <= 100)) [s.output, s.big, s.trophy, s.consistency = 0] = w;
   const f = Number(q.get("f"));
   if (q.has("f") && f >= 0 && f <= 100) s.fairness = f;
   if (q.get("r") === "open") s.historical = false;
@@ -23,7 +23,8 @@ const state = readUrl();
 function writeUrl() {
   const q = new URLSearchParams();
   const s = state.s;
-  if (s.output !== DEFAULTS.output || s.big !== DEFAULTS.big || s.trophy !== DEFAULTS.trophy) q.set("w", `${s.output},${s.big},${s.trophy}`);
+  if (s.output !== DEFAULTS.output || s.big !== DEFAULTS.big || s.trophy !== DEFAULTS.trophy || s.consistency !== DEFAULTS.consistency)
+    q.set("w", `${s.output},${s.big},${s.trophy},${s.consistency}`);
   if (s.fairness !== DEFAULTS.fairness) q.set("f", String(s.fairness));
   if (!s.historical) q.set("r", "open");
   if (state.year) q.set("y", String(state.year));
@@ -33,7 +34,7 @@ function writeUrl() {
 }
 
 function syncForm() {
-  for (const k of ["output", "big", "trophy", "fairness"] as const) {
+  for (const k of ["output", "big", "trophy", "consistency", "fairness"] as const) {
     (form.elements.namedItem(k) as HTMLInputElement).value = String(state.s[k]);
     $(`[data-for="${k}"]`).textContent = k === "fairness" ? `${state.s[k]}%` : String(state.s[k]);
   }
@@ -125,11 +126,21 @@ async function main() {
 
   form.addEventListener("input", () => {
     const fd = new FormData(form);
-    for (const k of ["output", "big", "trophy", "fairness"] as const) state.s[k] = Number(fd.get(k));
+    for (const k of ["output", "big", "trophy", "consistency", "fairness"] as const) state.s[k] = Number(fd.get(k));
     state.s.historical = fd.get("rules") === "historical";
     syncForm(); render(data); writeUrl();
   });
   form.addEventListener("submit", (e) => e.preventDefault());
+
+  $("#share-year").addEventListener("click", async () => {
+    const url = `${location.origin}/y/${state.year ?? 2012}/`;
+    try {
+      await navigator.clipboard.writeText(url);
+      $("#share-year-status").textContent = "Link copied. It previews with this year’s card, scored on the default weights.";
+    } catch {
+      $("#share-year-status").textContent = `Copy this link: ${url}`;
+    }
+  });
 
   $("#share").addEventListener("click", async () => {
     writeUrl();

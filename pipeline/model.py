@@ -46,9 +46,29 @@ def _zscore(values: pd.Series, ref: pd.Series) -> pd.Series:
     return ((values - ref.mean()) / ref.std()).fillna(-0.5)
 
 
+def consistency(df: pd.DataFrame) -> pd.Series:
+    """Share of the club's months in which the player played at the top quarter of his position's era."""
+    out = pd.Series(np.nan, index=df.index)
+    q = df[df["qualified"]]
+    for (year, pos), idx in df[df["qualified"]].groupby(["year", "pos"]).groups.items():
+        ref = q[((q["year"] - year).abs() <= ERA_HALF_WIDTH) & (q["pos"] == pos)]["months"]
+        pool = np.concatenate([np.asarray(m, dtype=float) for m in ref if len(m)]) if len(ref) else np.array([])
+        if not len(pool):
+            continue
+        bench = np.percentile(pool, 75)
+        out.loc[idx] = [sum(v >= bench for v in m) / max(t, 1) for m, t in zip(df.loc[idx, "months"], df.loc[idx, "team_months"])]
+    return out
+
+
+def _compress(x: pd.Series) -> pd.Series:
+    # One deep cup run is heavy-tailed; without this a single final outweighs a season.
+    return np.sign(x) * np.sqrt(x.abs())
+
+
 def score(df: pd.DataFrame) -> pd.DataFrame:
     df = sub_metrics(df)
     df["qualified"] = (df["minutes"] >= MIN_MINUTES) | (df["league_missing"] & (df["matches"] >= 4))
+    df["consistency_raw"] = consistency(df)
     q = df[df["qualified"]]
     out = []
     for year, ydf in df[df["qualified"]].groupby("year"):
@@ -79,21 +99,26 @@ def score(df: pd.DataFrame) -> pd.DataFrame:
         ydf = ydf.copy()
         ydf["output_pos"] = 0.0
         ydf["big_pos"] = 0.0
+        ydf["consistency"] = 0.0
         for pos, pdf in ydf.groupby("pos"):
             rp = ref[ref["pos"] == pos]
+            ydf.loc[pdf.index, "consistency"] = _zscore(pdf["consistency_raw"], rp["consistency_raw"])
             ydf.loc[pdf.index, "output_pos"] = _zscore(pdf["output_pos_raw"], rp["output_pos_raw"])
-            ydf.loc[pdf.index, "big_pos"] = _zscore(pdf["big_score"], rp["big_score"])
+            ydf.loc[pdf.index, "big_pos"] = _zscore(_compress(pdf["big_score"]), _compress(rp["big_score"]))
         ydf["output_all"] = _zscore(ydf["output_all_raw"], ref["output_all_raw"])
-        ydf["big_all"] = _zscore(ydf["big_score"], ref["big_score"])
+        ydf["big_all"] = _zscore(_compress(ydf["big_score"]), _compress(ref["big_score"]))
         ydf["trophy"] = _zscore(np.sqrt(ydf["trophy_score"]), np.sqrt(ref["trophy_score"]))
         final.append(ydf)
     return pd.concat(final)
 
 
-DEFAULT_WEIGHTS = {"output": 0.5, "big": 0.25, "trophy": 0.25}
+DEFAULT_WEIGHTS = {"output": 0.5, "big": 0.25, "trophy": 0.25, "consistency": 0.0}
 
 
 def total(df: pd.DataFrame, weights=DEFAULT_WEIGHTS, fairness: float = 0.7) -> pd.Series:
     out = fairness * df["output_pos"] + (1 - fairness) * df["output_all"]
     big = fairness * df["big_pos"] + (1 - fairness) * df["big_all"]
-    return weights["output"] * out + weights["big"] * big + weights["trophy"] * df["trophy"]
+    norm = sum(weights.values()) or 1
+    cons = df["consistency"] if "consistency" in df else 0
+    return (weights["output"] * out + weights["big"] * big + weights["trophy"] * df["trophy"]
+            + weights.get("consistency", 0) * cons) / norm
