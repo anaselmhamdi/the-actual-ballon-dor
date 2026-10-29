@@ -93,7 +93,7 @@ def score(df: pd.DataFrame) -> pd.DataFrame:
 DEFAULT_WEIGHTS = {"output": 0.5, "big": 0.25, "trophy": 0.25}
 
 
-def total(df: pd.DataFrame, weights=DEFAULT_WEIGHTS, fairness: float = 1.0) -> pd.Series:
+def total(df: pd.DataFrame, weights=DEFAULT_WEIGHTS, fairness: float = 0.7) -> pd.Series:
     out = fairness * df["output_pos"] + (1 - fairness) * df["output_all"]
     big = fairness * df["big_pos"] + (1 - fairness) * df["big_all"]
     return weights["output"] * out + weights["big"] * big + weights["trophy"] * df["trophy"]

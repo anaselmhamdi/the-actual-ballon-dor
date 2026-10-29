@@ -26,7 +26,7 @@ export interface Data {
 
 export interface Settings { output: number; big: number; trophy: number; fairness: number; historical: boolean }
 
-export const DEFAULTS: Settings = { output: 50, big: 25, trophy: 25, fairness: 100, historical: true };
+export const DEFAULTS: Settings = { output: 50, big: 25, trophy: 25, fairness: 70, historical: true };
 
 export function parts(c: Cand, s: Settings) {
   const sum = s.output + s.big + s.trophy || 1;
