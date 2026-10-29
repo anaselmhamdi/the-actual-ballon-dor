@@ -107,7 +107,7 @@ def ballon_dor_votes(year: int) -> list[dict]:
             rank = _number(r[rank_col].get_text(" ", strip=True)) if rank_col < len(r) else None
             if link and rank:
                 rows.append({"year": year, "rank": int(rank), "wiki": link,
-                             "name": r[player_col].get_text(" ", strip=True), "points": pts})
+                             "name": re.sub(r"\s*\[[^\]]*\]", "", r[player_col].get_text(" ", strip=True)), "points": pts})
         if not rows:
             continue
         # FIFA-era pages split the men's ranking over several tables; a restart at rank 1 is the women's award.
